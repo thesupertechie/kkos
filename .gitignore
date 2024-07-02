@@ -1,0 +1,7 @@
+run.sh
+run
+vscode/*
+.vscode/*
+build/*
+a.out
+a.exe
