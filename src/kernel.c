@@ -4,8 +4,6 @@ void printf(const char* str) {
     volatile uint16_t* video_memory = (uint16_t*) 0xB8000;
     uint16_t attribute = 0x0F00; // white on black
     int offset = 0;
-    int vga_width = 80;
-    int vga_height = 25;
     
     while (*str) {
         video_memory[offset] = (*str) | attribute;
@@ -14,6 +12,6 @@ void printf(const char* str) {
     }
 }
 
-extern void main(){
-    printf("Starting kkOS...");
+extern void main() {
+    printf("kkOS i386 build");
 }
