@@ -1,0 +1,16 @@
+#!/bin/bash
+
+export PATH=$PATH:/opt/cross/i386-elf/bin
+
+nasm "i386/boot.asm" -f bin -o "build/boot.bin"
+nasm "i386/kernel_entry.asm" -f elf -o "build/kernel_entry.o"
+i386-elf-gcc -ffreestanding -m32 -g -c "i386/kernel.c" -o "build/kernel.o"
+i386-elf-gcc -ffreestanding -m32 -g -c "i386/vga.c" -o "build/vga.o"
+#nasm "zeroes.asm" -f bin -o "Binaries/zeroes.bin"
+
+i386-elf-ld -o "build/full_kernel.bin" -Ttext 0x1000 "build/kernel_entry.o" "build/kernel.o" "build/vga.o" --oformat binary
+
+cat "build/boot.bin" "build/full_kernel.bin" > "binaries/kkOS-i386.bin"
+
+qemu-system-x86_64 -drive format=raw,file="binaries/kkOS-i386.bin",index=0,if=floppy,  -m 128M
+# For CPU reset data add -d cpu_reset
