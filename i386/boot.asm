@@ -12,9 +12,9 @@ mov ds, ax ; set data segment to 0
 mov bp, 0x8000 ; set stack area
 mov sp, bp ; initialize stack
 mov bx, KERNEL_LOCATION ; set bx to kernel location
-mov dh, 2 ; read 2 sectors
+mov dh, 3 ; read this number of sectors
 mov ah, 0x02 ; tell BIOS we are going to read from disk
-mov al, dh ; again, 2 sectors
+mov al, dh ; again, this is how many sectors
 mov ch, 0x00 ; cylinder 0
 mov dh, 0x00 ; head 0
 mov cl, 0x02 ; set starting sector to 2
