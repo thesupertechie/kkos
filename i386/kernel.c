@@ -1,107 +1,129 @@
-#define IDT_MAX_DESCRIPTORS 256
-
 #include <stdint.h>
-#include <stdbool.h>
-#include "vga.h"
 
-__attribute__((noreturn))
-void exception_handler(uint8_t interrupt_number);
+typedef struct
+{
+    uint16_t offset_1;
+    uint16_t selector;
+    uint8_t zero;
+    uint8_t attributes;
+    uint16_t offset_2;
+} __attribute__((packed)) idt32;
 
-extern void exception_handler(uint8_t interrupt_number){
-    __asm__ volatile ("cli");
-    __asm__ volatile ("hlt");
-}
-
-void panic(char* error_code){
-    VGA_set_colors(0x4F);
-    for (int i = 0; i < (80*25); i++) {
-        VGA_print_char(' ', i);
-    }
-
-    VGA_print_str("STOP:", 0);
-
-    int error_code_offset = 5;
-
-    while (*error_code){
-        VGA_print_char(*error_code, (error_code_offset));
-        error_code++;
-        error_code_offset++;
-    }
-
-    VGA_print_str("An issue occurred which required kkOS to stop. If this is the first time you", 80);
-    VGA_print_str("have seen this message, please restart your computer. If not, please open a new", 160);
-    VGA_print_str("issue at kkOS's GitHub repository:", 240);
-    VGA_print_str("https://github.com/kkCoder111/kkos", 320);
-    VGA_print_str("Please ensure that no similar issue exists, and include a screenshot.", 400);
-    VGA_print_str("Thank you.", 480);
-}
-
-typedef struct {
-    uint16_t offset_lo;
-    uint16_t kernel_selector;
-    uint8_t unused;
-    uint8_t type_attributes;
-    uint16_t offset_hi;
-} __attribute__ ((packed)) idt_entry;
-
-struct idtr {
+typedef struct
+{
     uint16_t limit;
     uint32_t base;
-} __attribute__ ((packed));
+} __attribute__((packed)) idtr32;
 
-// Declare the IDT array
-idt_entry idt[IDT_MAX_DESCRIPTORS];
+__attribute__((aligned(0x10)))
+static idt32 idt[256];
+static idtr32 idtr;
 
-// Declare the IDTR structure
-struct idtr idtr;
-
-static bool vectors[IDT_MAX_DESCRIPTORS];
-extern void* isr_stub_table[];
-
-void set_idt_descriptor(uint8_t vector, void* isr, uint8_t flags){
-    idt_entry* descriptor = &idt[vector];
-    descriptor->offset_lo = (uint32_t)isr & 0xFFFF;
-    descriptor->kernel_selector = 0x08;
-    descriptor->offset_hi = (uint32_t)isr >> 16;
-    descriptor->unused = 0;
-    descriptor->type_attributes = flags;
+void set_idt_entry(int num, uint32_t base, uint16_t selector, uint8_t attributes){
+    idt[num].offset_1 = base & 0xFFFF;
+    idt[num].selector = selector;
+    idt[num].zero = 0;
+    idt[num].attributes = attributes;
+    idt[num].offset_2 = (base >> 16) & 0xFFFF;
 }
 
-void idt_init(void){
-    idtr.base = (uintptr_t)&idt[0];
-    idtr.limit = (uint16_t)sizeof(idt_entry) * IDT_MAX_DESCRIPTORS - 1;
+void load_idt(uint32_t idtr_address){
+    __asm__ __volatile__ ("lidt (%0)" : : "r" (idtr_address));
+}
 
-    for (uint8_t vector = 0; vector < 32; vector++){
-        set_idt_descriptor(vector, isr_stub_table[vector], 0x8E);
-        vectors[vector] = true;
+void isr_handler (int interrupt) {
+    if (interrupt < 32){
+        *(char*)0xb8000 = 'E';
+         __asm__ __volatile__ ("cli");
+        __asm__ __volatile__ ("hlt");
+    }
+    else {
+        *(char*)0xb8000 = 'I';
     }
 
-    __asm__ volatile ("lidt %0" :: "m"(idtr));
-    __asm__ volatile ("sti");
+    __asm__ __volatile__ ("iret");
+}
+
+void isr0() {isr_handler(0);}
+void isr1() {isr_handler(1);}
+void isr2() {isr_handler(2);}
+void isr3() {isr_handler(3);}
+void isr4() {isr_handler(4);}
+void isr5() {isr_handler(5);}
+void isr6() {isr_handler(6);}
+void isr7() {isr_handler(7);}
+void isr8() {isr_handler(8);}
+void isr9() {isr_handler(9);}
+void isr10() {isr_handler(10);}
+void isr11() {isr_handler(11);}
+void isr12() {isr_handler(12);}
+void isr13() {isr_handler(13);}
+void isr14() {isr_handler(14);}
+void isr15() {isr_handler(15);}
+void isr16() {isr_handler(16);}
+void isr17() {isr_handler(17);}
+void isr18() {isr_handler(18);}
+void isr19() {isr_handler(19);}
+void isr20() {isr_handler(20);}
+void isr21() {isr_handler(21);}
+void isr22() {isr_handler(22);}
+void isr23() {isr_handler(23);}
+void isr24() {isr_handler(24);}
+void isr25() {isr_handler(25);}
+void isr26() {isr_handler(26);}
+void isr27() {isr_handler(27);}
+void isr28() {isr_handler(28);}
+void isr29() {isr_handler(29);}
+void isr30() {isr_handler(30);}
+void isr31() {isr_handler(31);}
+
+void generic_isr(){isr_handler(32);}
+
+void idt_init(){
+    for (int i=0; i<256; i++){
+        set_idt_entry(i, (uint32_t)generic_isr, 0x08, 0x8E);
+    }
+
+    set_idt_entry(0, (uint32_t)isr0, 0x08, 0x8E);
+    set_idt_entry(1, (uint32_t)isr1, 0x08, 0x8E);
+    set_idt_entry(2, (uint32_t)isr2, 0x08, 0x8E);
+    set_idt_entry(3, (uint32_t)isr3, 0x08, 0x8E);
+    set_idt_entry(4, (uint32_t)isr4, 0x08, 0x8E);
+    set_idt_entry(5, (uint32_t)isr5, 0x08, 0x8E);
+    set_idt_entry(6, (uint32_t)isr6, 0x08, 0x8E);
+    set_idt_entry(7, (uint32_t)isr7, 0x08, 0x8E);
+    set_idt_entry(8, (uint32_t)isr8, 0x08, 0x8E);
+    set_idt_entry(9, (uint32_t)isr9, 0x08, 0x8E);
+    set_idt_entry(10, (uint32_t)isr10, 0x08, 0x8E);
+    set_idt_entry(11, (uint32_t)isr11, 0x08, 0x8E);
+    set_idt_entry(12, (uint32_t)isr12, 0x08, 0x8E);
+    set_idt_entry(13, (uint32_t)isr13, 0x08, 0x8E);
+    set_idt_entry(14, (uint32_t)isr14, 0x08, 0x8E);
+    set_idt_entry(15, (uint32_t)isr15, 0x08, 0x8E);
+    set_idt_entry(16, (uint32_t)isr16, 0x08, 0x8E);
+    set_idt_entry(17, (uint32_t)isr17, 0x08, 0x8E);
+    set_idt_entry(18, (uint32_t)isr18, 0x08, 0x8E);
+    set_idt_entry(19, (uint32_t)isr19, 0x08, 0x8E);
+    set_idt_entry(20, (uint32_t)isr20, 0x08, 0x8E);
+    set_idt_entry(21, (uint32_t)isr21, 0x08, 0x8E);
+    set_idt_entry(22, (uint32_t)isr22, 0x08, 0x8E);
+    set_idt_entry(23, (uint32_t)isr23, 0x08, 0x8E);
+    set_idt_entry(24, (uint32_t)isr24, 0x08, 0x8E);
+    set_idt_entry(25, (uint32_t)isr25, 0x08, 0x8E);
+    set_idt_entry(26, (uint32_t)isr26, 0x08, 0x8E);
+    set_idt_entry(27, (uint32_t)isr27, 0x08, 0x8E);
+    set_idt_entry(28, (uint32_t)isr28, 0x08, 0x8E);
+    set_idt_entry(29, (uint32_t)isr29, 0x08, 0x8E);
+    set_idt_entry(30, (uint32_t)isr30, 0x08, 0x8E);
+    set_idt_entry(31, (uint32_t)isr31, 0x08, 0x8E);
+
+    idtr.limit = (sizeof(idt32) * 256) - 1;
+    idtr.base = (uint32_t)&idt;
+    load_idt((uint32_t)&idtr);
 }
 
 extern void main(){
-    enum VGA_colors {
-        BLACK = 0x0,
-        BLUE = 0x1,
-        GREEN = 0x2,
-        CYAN = 0x3,
-        RED = 0x4,
-        MAGENTA = 0x5,
-        BROWN = 0x6,
-        LIGHT_GRAY = 0x7,
-        DARK_GRAY = 0x8,
-        LIGHT_BLUE = 0x9,
-        LIGHT_GREEN = 0xA,
-        LIGHT_CYAN = 0xB,
-        LIGHT_RED = 0xC,
-        LIGHT_MAGENTA = 0xD,
-        YELLOW = 0xE,
-        WHITE = 0xF
-    };
-    VGA_set_colors(0x0F);
-    VGA_print_str("kkOS 32-bit", 0);
-    VGA_print_str("The architecture type is i386.", 80);
-    //int a = 1 / 0; // This will trigger a divide by zero interrupt
+    idt_init();
+    *(char*)0xb8000 = 'K';
     return;
 }
